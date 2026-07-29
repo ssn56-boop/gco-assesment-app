@@ -8,12 +8,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID",
+  apiKey: "AIzaSyAoCLXbuA996VvwLbrbIR1UyfFP9S17iu4",
+  authDomain: "gco-assessments.firebaseapp.com",
+  projectId: "gco-assessments",
+  storageBucket: "gco-assessments.firebasestorage.app",
+  messagingSenderId: "536390517307",
+  appId: "1:536390517307:web:96108858f03a6d466f521e"
 };
 
 const app = initializeApp(firebaseConfig);
