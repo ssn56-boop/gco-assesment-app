@@ -836,29 +836,34 @@ const OCEAN_DATA = {
  },
  "interviewQuestions": {
   "O": [
-   "Tell me about a time you inherited a process that was working fine. Did you change it, and how did you decide?",
-   "Describe a situation where you had to solve a problem with no real precedent to draw on. What did you do first?",
-   "Give an example of a time someone proposed a new approach you were skeptical of. What made you push back or come around?"
+   "Tell me about the last time you had zero precedent to work from. Walk me through exactly what you did in the first hour.",
+   "Describe a time someone below you suggested changing something that already worked. What did you actually do -- not what you wish you'd done?",
+   "When's the last time you were wrong about something being 'the way it's always done'? What did it take to change your mind?",
+   "If this role required you to throw out an approach you built and start over every few months, how honestly would that go for you?"
   ],
   "C": [
-   "Walk me through how you planned your most complex project. How far in advance, and in how much detail?",
-   "Tell me about a time a lack of structure or process caused a problem on a project you were part of. What happened?",
-   "Describe a time you had to move fast on something without your usual level of preparation. How did it go?"
+   "Tell me about a time something fell through the cracks because no one, including you, was tracking a detail closely enough.",
+   "Describe the last time you called something 'done' and it wasn't, really. What did you miss, and who caught it?",
+   "Walk me through your worst planning miss -- not a small one, the one that actually created a problem for someone else.",
+   "If I asked your last manager whether you reliably follow through on the unglamorous parts of a plan, what would they say, honestly?"
   ],
   "E": [
-   "Tell me about a time you had to build a relationship or alliance with someone you didn't know well. How did you approach it?",
-   "Describe a moment where you had to speak up in a room where you weren't the most senior person. What happened?",
-   "Give an example of a project that required sustained, independent, heads-down work. How did that suit you?"
+   "Tell me about a time you needed to be the loudest voice in the room and weren't. What happened as a result?",
+   "Describe the last time you had to build a relationship fast, with no time to warm up first. How did it actually go?",
+   "When did you last have to sell a skeptical room on an idea, live, without much time to prepare?",
+   "If this role required you to be the visible face of a high-profile initiative for a year, what's your honest read on how that would go?"
   ],
   "A": [
-   "Tell me about a time you had to hold a firm line on something unpopular. How did you handle the pushback?",
-   "Describe a disagreement with a colleague or client where you ultimately deferred to their view. Why?",
-   "Give an example of a decision where being liked and being right were in tension. What did you do?"
+   "Tell me about a time your directness cost you a relationship or damaged someone's trust in you.",
+   "Describe the last time you had to back down from a position you were sure was right. What actually made you do it?",
+   "Walk me through a time you pushed so hard for your view that it created real friction on a team.",
+   "If your last team described you honestly, behind closed doors, what do you think they'd say was hardest about working with you?"
   ],
   "ES": [
-   "Tell me about the toughest piece of feedback or criticism you've received. How did you respond in the moment, and afterward?",
-   "Describe a high-pressure situation where things went wrong in front of others. Walk me through what happened.",
-   "Give an example of a setback that took you longer than you expected to move past. What made it hard?"
+   "Tell me about the last time you were visibly rattled in front of other people. What did they see?",
+   "Describe a setback that took you noticeably longer to move past than it probably should have.",
+   "Walk me through the last time criticism actually changed your mood or focus for the rest of the day.",
+   "If this role meant getting publicly challenged by senior stakeholders on a regular basis, what's your honest prediction for how you'd hold up after six months of it?"
   ]
  }
 };
@@ -972,6 +977,8 @@ export default function App() {
   const [adminPass, setAdminPass] = React.useState("");
   const [passError, setPassError] = React.useState(false);
   const [adminData, setAdminData] = React.useState([]);
+  const [selectedKeys, setSelectedKeys] = React.useState({});
+  const [printCandidate, setPrintCandidate] = React.useState(null);
   const [adminLoading, setAdminLoading] = React.useState(false);
 
   const questions = OCEAN_DATA.questions;
@@ -1025,11 +1032,16 @@ export default function App() {
     for (const k of keys) {
       try {
         const r = await window.storage.get(k, true);
-        if (r && r.value) records.push(JSON.parse(r.value));
+        if (r && r.value) {
+          const parsed = JSON.parse(r.value);
+          parsed._storageKey = k;
+          records.push(parsed);
+        }
       } catch (e) {}
     }
     records.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     setAdminData(records);
+    setSelectedKeys({});
     setAdminLoading(false);
     setView("admin");
   }
@@ -1052,14 +1064,36 @@ export default function App() {
       } catch (e) {}
     }
     setAdminData([]);
+    setSelectedKeys({});
     setAdminLoading(false);
+  }
+
+  async function clearSelectedTestData() {
+    const keysToDelete = Object.keys(selectedKeys).filter((k) => selectedKeys[k]);
+    if (keysToDelete.length === 0) return;
+    if (!window.confirm(`Delete ${keysToDelete.length} selected submission(s)? This can't be undone.`)) {
+      return;
+    }
+    setAdminLoading(true);
+    for (const k of keysToDelete) {
+      try {
+        await window.storage.delete(k, true);
+      } catch (e) {}
+    }
+    setAdminData((prev) => prev.filter((rec) => !keysToDelete.includes(rec._storageKey)));
+    setSelectedKeys({});
+    setAdminLoading(false);
+  }
+
+  function toggleSelected(key) {
+    setSelectedKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   // ---------------- MENU ----------------
   if (view === "menu") {
     return (
       <div style={{ minHeight: "100%", background: CREAM, fontFamily: "Arial, sans-serif" }}>
-        <HeaderBanner tagline="OCEAN Behavioral Assessment" />
+        <HeaderBanner />
         <div style={{ padding: "40px 20px" }}>
           <div style={{ maxWidth: 720, margin: "0 auto" }}>
             <h1 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 28, marginTop: 0, marginBottom: 28 }}>
@@ -1229,7 +1263,7 @@ export default function App() {
               <button onClick={() => setView("menu")} style={{ padding: "9px 16px", background: "white", border: "1px solid #CCCCCC", borderRadius: 6, cursor: "pointer" }}>Back</button>
               <button
                 onClick={() => {
-                  if (adminPass === "goldsmith2026") loadAdmin();
+                  if (adminPass === "homer&gus") loadAdmin();
                   else setPassError(true);
                 }}
                 style={{ padding: "9px 20px", background: NAVY, color: "white", border: "none", borderRadius: 6, cursor: "pointer" }}
@@ -1237,7 +1271,7 @@ export default function App() {
                 Enter
               </button>
             </div>
-            <p style={{ fontSize: 11, color: "#aaa", marginTop: 16 }}>Default passcode: goldsmith2026 — change this in the code before sharing widely.</p>
+
           </div>
         </div>
       </div>
@@ -1248,12 +1282,28 @@ export default function App() {
   if (view === "admin") {
     return (
       <div style={{ minHeight: "100%", background: CREAM, fontFamily: "Arial, sans-serif" }}>
+        <style>{`
+          @media print {
+            body * { visibility: hidden; }
+            #print-report, #print-report * { visibility: visible; }
+            #print-report { position: absolute !important; left: 0 !important; top: 0 !important; }
+          }
+        `}</style>
+        <PrintableReport result={printCandidate} />
         <HeaderBanner tagline="Team Results Dashboard" />
         <div style={{ padding: "40px 20px" }}>
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 22 }}>Candidate Results</h2>
-              <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                {Object.values(selectedKeys).some(Boolean) && (
+                  <button
+                    onClick={clearSelectedTestData}
+                    style={{ fontSize: 12, color: "#C00000", background: "none", border: "1px solid #C00000", borderRadius: 4, padding: "5px 10px", cursor: "pointer" }}
+                  >
+                    Delete Selected ({Object.values(selectedKeys).filter(Boolean).length})
+                  </button>
+                )}
                 {adminData.length > 0 && (
                   <button
                     onClick={clearAllTestData}
@@ -1276,6 +1326,7 @@ export default function App() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: NAVY, color: "white" }}>
+                      <th style={{ padding: "10px 12px", textAlign: "center", width: 36 }}></th>
                       <th style={{ padding: "10px 12px", textAlign: "left" }}>#</th>
                       <th style={{ padding: "10px 12px", textAlign: "left" }}>Candidate</th>
                       <th style={{ padding: "10px 12px", textAlign: "left" }}>Submitted</th>
@@ -1286,7 +1337,14 @@ export default function App() {
                   </thead>
                   <tbody>
                     {adminData.map((rec, i) => (
-                      <tr key={i} style={{ borderTop: "1px solid #eee", background: i % 2 ? "#FAFAFA" : "white" }}>
+                      <tr key={i} style={{ borderTop: "1px solid #eee", background: selectedKeys[rec._storageKey] ? "#FDEDED" : (i % 2 ? "#FAFAFA" : "white") }}>
+                        <td style={{ padding: "10px 12px", textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!selectedKeys[rec._storageKey]}
+                            onChange={() => toggleSelected(rec._storageKey)}
+                          />
+                        </td>
                         <td style={{ padding: "10px 12px", fontWeight: 700, color: GOLD }}>{i + 1}</td>
                         <td style={{ padding: "10px 12px", fontWeight: 600, color: NAVY }}>{rec.candidateName}</td>
                         <td style={{ padding: "10px 12px", color: "#888", fontSize: 12 }}>{new Date(rec.timestamp).toLocaleDateString()}</td>
@@ -1305,8 +1363,19 @@ export default function App() {
                 <h3 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 17, marginBottom: 12 }}>Individual Reports</h3>
                 {adminData.map((rec, i) => (
                   <details key={i} style={{ background: "white", border: "1px solid " + LIGHTGOLD, borderRadius: 8, marginBottom: 10, padding: "12px 16px" }}>
-                    <summary style={{ cursor: "pointer", fontWeight: 700, color: NAVY, fontSize: 14 }}>
-                      #{i + 1} — {rec.candidateName} ({new Date(rec.timestamp).toLocaleDateString()})
+                    <summary style={{ cursor: "pointer", fontWeight: 700, color: NAVY, fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>#{i + 1} — {rec.candidateName} ({new Date(rec.timestamp).toLocaleDateString()})</span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPrintCandidate(rec);
+                          setTimeout(() => window.print(), 150);
+                        }}
+                        style={{ fontSize: 11, fontWeight: 600, color: NAVY, background: LIGHTGOLD, border: "1px solid " + GOLD, borderRadius: 4, padding: "5px 10px", cursor: "pointer" }}
+                      >
+                        Download PDF
+                      </button>
                     </summary>
                     <div style={{ marginTop: 14 }}>
                       <div style={{ background: LIGHTGOLD, borderRadius: 6, padding: "12px 14px", marginBottom: 16 }}>
@@ -1321,8 +1390,19 @@ export default function App() {
                           Suggested Interview Questions -- Probing {weakestTrait(rec.traitScores).name}
                         </div>
                         <ol style={{ margin: 0, paddingLeft: 18 }}>
-                          {OCEAN_DATA.interviewQuestions[weakestTrait(rec.traitScores).code].map((q, qi) => (
-                            <li key={qi} style={{ fontSize: 12.5, color: "#444", lineHeight: 1.6, marginBottom: 6 }}>{q}</li>
+                          {OCEAN_DATA.interviewQuestions[weakestTrait(rec.traitScores).code].map((q, qi, arr) => (
+                            <li
+                              key={qi}
+                              style={{
+                                fontSize: 12.5, color: "#444", lineHeight: 1.6, marginBottom: 6,
+                                fontWeight: qi === arr.length - 1 ? 700 : 400,
+                              }}
+                            >
+                              {q}
+                              {qi === arr.length - 1 && (
+                                <span style={{ fontWeight: 400, color: GOLD, fontSize: 11, marginLeft: 6 }}>(toughest follow-up)</span>
+                              )}
+                            </li>
                           ))}
                         </ol>
                       </div>
@@ -1366,6 +1446,66 @@ function ReportView({ result, candidateName, onDone, showDoneButton }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PrintableReport({ result }) {
+  if (!result) return null;
+  const weak = weakestTrait(result.traitScores);
+  return (
+    <div
+      id="print-report"
+      style={{ position: "fixed", left: -9999, top: 0, width: 700, background: "white", padding: 40, fontFamily: "Arial, sans-serif" }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 24, borderBottom: "2px solid " + NAVY, paddingBottom: 12 }}>
+        <span style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 20, color: NAVY }}>goldsmith</span>
+        <span style={{ fontFamily: "Georgia, serif", fontSize: 12, color: GOLD, fontStyle: "italic" }}>and co</span>
+      </div>
+      <h1 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 22, marginBottom: 4 }}>
+        Behavioral Assessment Report
+      </h1>
+      <p style={{ color: "#666", fontSize: 13, marginBottom: 24 }}>
+        {result.candidateName} &nbsp;|&nbsp; Submitted {new Date(result.timestamp).toLocaleDateString()}
+      </p>
+
+      <h2 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 16, marginBottom: 8 }}>Full Narrative Analysis</h2>
+      <p style={{ fontSize: 12.5, color: "#333", lineHeight: 1.7, marginBottom: 24 }}>
+        {buildOverallNarrative(result.traitScores, result.candidateName.split(" ")[0])}
+      </p>
+
+      <h2 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 16, marginBottom: 12 }}>OCEAN Personality Profile</h2>
+      {OCEAN_DATA.traits.map((t) => {
+        const score = result.traitScores[t.code];
+        const band = bandFor(score);
+        const narrative = OCEAN_DATA.traitNarrative[t.code][band];
+        const pct = ((score - 1) / 4) * 100;
+        return (
+          <div key={t.code} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+              <span style={{ fontWeight: 700, color: NAVY }}>{t.name}</span>
+              <span style={{ color: "#888" }}>{score.toFixed(2)} / 5.0</span>
+            </div>
+            <div style={{ background: "#E5E5E5", borderRadius: 999, height: 8, width: "100%", overflow: "hidden", marginBottom: 6 }}>
+              <div style={{ background: GOLD, height: "100%", width: pct + "%" }} />
+            </div>
+            <p style={{ fontSize: 11.5, color: "#444", lineHeight: 1.6, margin: 0 }}>{narrative}</p>
+          </div>
+        );
+      })}
+
+      <h2 style={{ fontFamily: "Georgia, serif", color: NAVY, fontSize: 16, marginTop: 16, marginBottom: 8 }}>
+        Suggested Interview Questions -- Probing {weak.name}
+      </h2>
+      <ol style={{ margin: 0, paddingLeft: 18 }}>
+        {OCEAN_DATA.interviewQuestions[weak.code].map((q, qi) => (
+          <li key={qi} style={{ fontSize: 12.5, color: "#333", lineHeight: 1.7, marginBottom: 8 }}>{q}</li>
+        ))}
+      </ol>
+
+      <p style={{ fontSize: 10, color: "#999", marginTop: 32, borderTop: "1px solid #ddd", paddingTop: 10 }}>
+        G&Co. internal candidate assessment tool -- for use alongside interviews, not in place of them.
+      </p>
     </div>
   );
 }
